@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Bot Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .auth-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .dashboard {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .user-info {
+            background: #e9ecef;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 2rem;
+        }
+        
+        .tab {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: none;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+        }
+        
+        .tab-content {
+            border: 1px solid #dee2e6;
+            padding: 2rem;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📱 Media Bot Admin Panel</h1>
+        <p>Manage your social media posting automation</p>
+    </div>
+    
+    <div class="container">
+        <!-- Authentication Section -->
+        <div id="auth-section" class="auth-section">
+            <h2>Login to Admin Panel</h2>
+            <div id="message"></div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="admin@mediabot.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password123">
+            </div>
+            
+            <button onclick="login()">Login</button>
+        </div>
+        
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="dashboard">
+            <div class="user-info">
+                <h3>👋 Welcome, <span id="username"></span>!</h3>
+                <p>Role: <span id="user-role"></span> | Email: <span id="user-email"></span></p>
+                <button onclick="logout()">Logout</button>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('overview')">📊 Overview</div>
+                <div class="tab" onclick="showTab('posts')">📝 Posts</div>
+                <div class="tab" onclick="showTab('media')">🖼️ Media</div>
+                <div class="tab" onclick="showTab('platforms')">🔗 Platforms</div>
+            </div>
+            
+            <div id="tab-overview" class="tab-content">
+                <h3>System Overview</h3>
+                <p>✅ API Server: Running</p>
+                <p>✅ Database: Connected</p>
+                <p>✅ Authentication: Active</p>
+                <p>📊 Ready to manage your social media automation!</p>
+            </div>
+            
+            <div id="tab-posts" class="tab-content" style="display: none;">
+                <h3>Posts Management</h3>
+                <p>Coming soon: Create and schedule posts</p>
+            </div>
+            
+            <div id="tab-media" class="tab-content" style="display: none;">
+                <h3>Media Library</h3>
+                <p>Coming soon: Upload and manage media files</p>
+            </div>
+            
+            <div id="tab-platforms" class="tab-content" style="display: none;">
+                <h3>Platform Connections</h3>
+                <p>Coming soon: Configure social media platforms</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    showMessage('Login successful!', 'success');
+                    showDashboard(data.user);
+                } else {
+                    showMessage(data.error || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Connection error: ' + error.message, 'error');
+            }
+        }
+
+        function showDashboard(user) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
+            document.getElementById('username').textContent = user.username;
+            document.getElementById('user-role').textContent = user.role;
+            document.getElementById('user-email').textContent = user.email;
+        }
+
+        function logout() {
+            authToken = null;
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            showMessage('Logged out successfully', 'success');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.style.display = 'none');
+            
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
