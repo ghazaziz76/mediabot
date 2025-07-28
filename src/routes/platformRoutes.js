@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const platformController = require('../controllers/platformController');
-const { authenticateToken } = require('../middleware/authentication');
+const { authenticateToken } = require('../middleware/auth');
 
 // Apply authentication middleware to all platform routes
 router.use(authenticateToken);

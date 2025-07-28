@@ -20,6 +20,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const authController = require('./src/controllers/authController');
 const mediaController = require('./src/controllers/mediaController');
 const { authenticateToken } = require('./src/middleware/auth');
+const platformRoutes = require('./src/routes/platformRoutes');
+const campaignRoutes = require('./src/routes/campaignRoutes');
 
 // Authentication routes
 app.post('/api/auth/register', authController.register);
@@ -29,6 +31,9 @@ app.post('/api/auth/login', authController.login);
 app.post('/api/media/upload', authenticateToken, mediaController.upload.single('file'), mediaController.uploadSingle);
 app.get('/api/media', authenticateToken, mediaController.getAllMedia);
 app.delete('/api/media/:id', authenticateToken, mediaController.deleteMedia);
+app.use('/api/platforms', platformRoutes);
+// Campaign routes (protected)
+app.use('/api/campaigns', campaignRoutes);
 
 // Protected test route
 

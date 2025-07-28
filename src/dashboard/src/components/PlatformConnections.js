@@ -120,7 +120,7 @@ const PlatformConnections = () => {
 
   // Function to disconnect a platform
   const disconnectPlatform = async (platformName) => {
-    if (!confirm(`Are you sure you want to disconnect ${platformName}?`)) {
+    if (!window.confirm(`Are you sure you want to disconnect ${platformName}?`)) {
       return;
     }
 

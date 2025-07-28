@@ -1,0 +1,236 @@
+/* Sidebar Container */
+.sidebar {
+  width: 250px;
+  min-height: 100vh;
+  background: #343a40;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #495057;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  font-size: 24px;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.collapse-button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 3px;
+}
+
+.collapse-button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* User Info */
+.user-info {
+  padding: 20px;
+  border-bottom: 1px solid #495057;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  background: #007bff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #adb5bd;
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-item {
+  margin-bottom: 5px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #adb5bd;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,0.05);
+  color: white;
+}
+
+.nav-link.active {
+  background: #007bff;
+  color: white;
+}
+
+.nav-icon {
+  font-size: 18px;
+  margin-right: 12px;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-content {
+  flex: 1;
+}
+
+.nav-label {
+  font-weight: 500;
+  display: block;
+}
+
+.nav-description {
+  font-size: 11px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+.active-indicator {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: white;
+}
+
+/* Quick Actions */
+.quick-actions {
+  padding: 20px;
+  border-top: 1px solid #495057;
+}
+
+.quick-actions h4 {
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  color: #adb5bd;
+}
+
+.quick-action-btn {
+  width: 100%;
+  background: #495057;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-action-btn:hover {
+  background: #5a6268;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid #495057;
+}
+
+.logout-button {
+  width: 100%;
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.logout-button:hover {
+  background: #c82333;
+}
+
+.version-info {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.version-info small {
+  color: #6c757d;
+  font-size: 11px;
+}
+
+/* Collapsed State */
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .user-details,
+.sidebar.collapsed .nav-content,
+.sidebar.collapsed .quick-actions h4,
+.sidebar.collapsed .version-info {
+  display: none;
+}
+
+.sidebar.collapsed .nav-link {
+  padding: 12px;
+  justify-content: center;
+}
+
+.sidebar.collapsed .nav-icon {
+  margin-right: 0;
+}
