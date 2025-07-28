@@ -32,11 +32,12 @@ app.post('/api/media/upload', authenticateToken, mediaController.upload.single('
 app.get('/api/media', authenticateToken, mediaController.getAllMedia);
 app.delete('/api/media/:id', authenticateToken, mediaController.deleteMedia);
 app.use('/api/platforms', platformRoutes);
+
 // Campaign routes (protected)
 app.use('/api/campaigns', campaignRoutes);
 
-// Protected test route
 
+// Protected test route
 app.get('/api/protected', authenticateToken, (req, res) => {
     res.json({ 
         message: 'This is a protected route!',

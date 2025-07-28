@@ -119,4 +119,22 @@ router.post('/:id/start', campaignController.startCampaign);
 // POST /api/campaigns/:id/stop - Stop campaign
 router.post('/:id/stop', campaignController.stopCampaign);
 
+// POST /api/campaigns/:id/test-post - Manual trigger for testing
+router.post('/:id/test-post', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const postingService = require('../services/postingService');
+    
+    const result = await postingService.triggerManualPost(id);
+    
+    res.json({
+      message: 'Manual post triggered',
+      result: result
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
