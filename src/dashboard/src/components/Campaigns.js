@@ -3,371 +3,299 @@ import './Campaigns.css';
 
 const Campaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [testResults, setTestResults] = useState({});
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    content: '',
-    platforms: [],
-    intervalMinutes: 360
-  });
-
-  // Available platforms
-  const availablePlatforms = [
-    { name: 'facebook', displayName: 'Facebook', icon: '📘' },
-    { name: 'twitter', displayName: 'Twitter', icon: '🐦' },
-    { name: 'linkedin', displayName: 'LinkedIn', icon: '💼' },
-    { name: 'instagram', displayName: 'Instagram', icon: '📸' },
-    { name: 'tiktok', displayName: 'TikTok', icon: '🎵' },
-    { name: 'threads', displayName: 'Threads', icon: '🧵' }
-  ];
-
-  // Interval options
-  const intervalOptions = [
-    { value: 60, label: '1 hour' },
-    { value: 120, label: '2 hours' },
-    { value: 180, label: '3 hours' },
-    { value: 360, label: '6 hours' },
-    { value: 720, label: '12 hours' },
-    { value: 1440, label: '24 hours' }
-  ];
-
-  // Load campaigns when component mounts
+  // Fetch campaigns when component loads
   useEffect(() => {
-    loadCampaigns();
+    fetchCampaigns();
   }, []);
 
-  // Load all campaigns
-  const loadCampaigns = async () => {
+  /**
+   * Fetch campaigns from backend API
+   */
+  const fetchCampaigns = async () => {
     try {
-      const response = await fetch('/api/campaigns', {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:3000/api/campaigns', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setCampaigns(data.campaigns);
+        setCampaigns(data.campaigns || []);
+        setError(null);
       } else {
-        setMessage('Failed to load campaigns');
+        throw new Error('Failed to fetch campaigns');
       }
-    } catch (error) {
-      setMessage('Error loading campaigns: ' + error.message);
-    }
-  };
-
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Handle platform selection
-  const handlePlatformChange = (platformName) => {
-    setFormData(prev => ({
-      ...prev,
-      platforms: prev.platforms.includes(platformName)
-        ? prev.platforms.filter(p => p !== platformName)
-        : [...prev.platforms, platformName]
-    }));
-  };
-
-  // Create new campaign
-  const createCampaign = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/campaigns', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Campaign created successfully!');
-        setShowCreateForm(false);
-        setFormData({
-          name: '',
-          description: '',
-          content: '',
-          platforms: [],
-          intervalMinutes: 360
-        });
-        loadCampaigns(); // Reload campaigns list
-      } else {
-        setMessage(data.error || 'Failed to create campaign');
-      }
-    } catch (error) {
-      setMessage('Error creating campaign: ' + error.message);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching campaigns:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Start campaign
-  const startCampaign = async (campaignId) => {
+  /**
+   * Test post for a specific campaign
+   */
+  const testCampaignPost = async (campaignId) => {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/start`, {
+      setTestResults(prev => ({
+        ...prev,
+        [campaignId]: { loading: true }
+      }));
+
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:3000/api/campaigns/${campaignId}/test-post`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.ok) {
-        setMessage('Campaign started successfully!');
-        loadCampaigns();
-      } else {
-        const data = await response.json();
-        setMessage(data.error || 'Failed to start campaign');
-      }
+      const result = await response.json();
+      
+      setTestResults(prev => ({
+        ...prev,
+        [campaignId]: {
+          loading: false,
+          success: result.success,
+          data: result,
+          timestamp: new Date().toISOString()
+        }
+      }));
+
+      // Refresh campaigns to get updated stats
+      fetchCampaigns();
+
     } catch (error) {
-      setMessage('Error starting campaign: ' + error.message);
+      setTestResults(prev => ({
+        ...prev,
+        [campaignId]: {
+          loading: false,
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      }));
     }
   };
 
-  // Stop campaign
-  const stopCampaign = async (campaignId) => {
+  /**
+   * Toggle campaign status
+   */
+  const toggleCampaign = async (campaignId, currentStatus) => {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/stop`, {
-        method: 'POST',
+      const token = localStorage.getItem('token');
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      
+      const response = await fetch(`http://localhost:3000/api/campaigns/${campaignId}`, {
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
       });
 
       if (response.ok) {
-        setMessage('Campaign stopped successfully!');
-        loadCampaigns();
-      } else {
-        const data = await response.json();
-        setMessage(data.error || 'Failed to stop campaign');
+        fetchCampaigns(); // Refresh the list
       }
     } catch (error) {
-      setMessage('Error stopping campaign: ' + error.message);
+      console.error('Error toggling campaign:', error);
     }
   };
+
+  /**
+   * Format platforms array for display
+   */
+  const formatPlatforms = (platforms) => {
+    try {
+      const platformArray = typeof platforms === 'string' ? JSON.parse(platforms) : platforms;
+      return Array.isArray(platformArray) ? platformArray.join(', ') : 'No platforms';
+    } catch {
+      return 'No platforms';
+    }
+  };
+
+  /**
+   * Get status badge color
+   */
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return '#28a745';
+      case 'paused': return '#ffc107';
+      case 'stopped': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
+
+  /**
+   * Format time ago
+   */
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Never';
+    
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="campaigns-container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <p>Loading campaigns...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="campaigns-container">
+        <div className="error-message">
+          <h3>❌ Error Loading Campaigns</h3>
+          <p>{error}</p>
+          <button onClick={fetchCampaigns} className="retry-button">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="campaigns">
+    <div className="campaigns-container">
       <div className="campaigns-header">
-        <h2>Campaign Management</h2>
-        <button 
-          className="btn-create-campaign"
-          onClick={() => setShowCreateForm(true)}
-        >
-          + Create New Campaign
+        <h2>📝 Campaign Management</h2>
+        <p>Manage your social media automation campaigns</p>
+        <button className="refresh-button" onClick={fetchCampaigns}>
+          🔄 Refresh
         </button>
       </div>
 
-      {message && (
-        <div className={`message ${message.includes('Error') || message.includes('Failed') ? 'error' : 'success'}`}>
-          {message}
-          <button onClick={() => setMessage('')}>×</button>
-        </div>
-      )}
-
-      {/* Create Campaign Form */}
-      {showCreateForm && (
-        <div className="create-campaign-modal">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Create New Campaign</h3>
-              <button 
-                className="close-modal"
-                onClick={() => setShowCreateForm(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={createCampaign} className="campaign-form">
-              <div className="form-group">
-                <label>Campaign Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Forex Trading Course"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description</label>
-                <input
-                  type="text"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Brief description of this campaign"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Post Content *</label>
-                <textarea
-                  name="content"
-                  value={formData.content}
-                  onChange={handleInputChange}
-                  placeholder="Write your post content here..."
-                  rows="4"
-                  required
-                />
-                <small>{formData.content.length} characters</small>
-              </div>
-
-              <div className="form-group">
-                <label>Select Platforms *</label>
-                <div className="platforms-grid">
-                  {availablePlatforms.map(platform => (
-                    <label key={platform.name} className="platform-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={formData.platforms.includes(platform.name)}
-                        onChange={() => handlePlatformChange(platform.name)}
-                      />
-                      <span className="platform-info">
-                        <span className="platform-icon">{platform.icon}</span>
-                        <span className="platform-name">{platform.displayName}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <small>Selected: {formData.platforms.length} platform(s)</small>
-              </div>
-
-              <div className="form-group">
-                <label>Posting Interval</label>
-                <select
-                  name="intervalMinutes"
-                  value={formData.intervalMinutes}
-                  onChange={handleInputChange}
-                >
-                  {intervalOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-actions">
-                <button 
-                  type="button" 
-                  className="btn-cancel"
-                  onClick={() => setShowCreateForm(false)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-submit"
-                  disabled={loading || formData.platforms.length === 0}
-                >
-                  {loading ? 'Creating...' : 'Create Campaign'}
-                </button>
-              </div>
-            </form>
+      {campaigns.length === 0 ? (
+        <div className="no-campaigns">
+          <h3>No Campaigns Found</h3>
+          <p>Create your first campaign to get started with social media automation!</p>
+          <div className="create-campaign-hint">
+            <p>💡 You can create campaigns using the API endpoint:</p>
+            <code>POST /api/campaigns</code>
           </div>
         </div>
-      )}
-
-      {/* Campaigns List */}
-      <div className="campaigns-list">
-        <h3>Your Campaigns ({campaigns.length})</h3>
-        
-        {campaigns.length === 0 ? (
-          <div className="no-campaigns">
-            <p>No campaigns yet. Create your first campaign to get started!</p>
-          </div>
-        ) : (
-          <div className="campaigns-grid">
-            {campaigns.map(campaign => (
-              <div key={campaign.id} className={`campaign-card ${campaign.isActive ? 'active' : 'inactive'}`}>
-                <div className="campaign-header">
-                  <h4>{campaign.name}</h4>
-                  <span className={`status ${campaign.status.toLowerCase()}`}>
-                    {campaign.status}
-                  </span>
+      ) : (
+        <div className="campaigns-grid">
+          {campaigns.map((campaign) => (
+            <div key={campaign.id} className="campaign-card">
+              <div className="campaign-header">
+                <h3>{campaign.name || `Campaign ${campaign.id}`}</h3>
+                <div 
+                  className="status-badge" 
+                  style={{ backgroundColor: getStatusColor(campaign.status) }}
+                >
+                  {campaign.status || 'unknown'}
                 </div>
+              </div>
 
-                <div className="campaign-details">
-                  <p className="description">{campaign.description}</p>
-                  <div className="content-preview">
-                    {campaign.content.substring(0, 100)}
-                    {campaign.content.length > 100 ? '...' : ''}
-                  </div>
+              <div className="campaign-content">
+                <p className="content-preview">
+                  {campaign.content ? 
+                    (campaign.content.length > 100 ? 
+                      campaign.content.substring(0, 100) + '...' : 
+                      campaign.content
+                    ) : 
+                    'No content'
+                  }
+                </p>
+              </div>
+
+              <div className="campaign-details">
+                <div className="detail-row">
+                  <span className="label">Platforms:</span>
+                  <span className="value">{formatPlatforms(campaign.platforms)}</span>
                 </div>
-
-                <div className="campaign-platforms">
-                  <strong>Platforms:</strong>
-                  <div className="platform-badges">
-                    {campaign.platforms.map(platform => {
-                      const platformInfo = availablePlatforms.find(p => p.name === platform);
-                      return (
-                        <span key={platform} className="platform-badge">
-                          {platformInfo?.icon} {platformInfo?.displayName}
-                        </span>
-                      );
-                    })}
-                  </div>
+                <div className="detail-row">
+                  <span className="label">Interval:</span>
+                  <span className="value">{campaign.intervalHours || 2} hours</span>
                 </div>
-
-                <div className="campaign-stats">
-                  <div className="stat">
-                    <span>Interval:</span>
-                    <span>{Math.floor(campaign.intervalMinutes / 60)}h {campaign.intervalMinutes % 60}m</span>
-                  </div>
-                  <div className="stat">
-                    <span>Posts:</span>
-                    <span>{campaign.totalPosts}</span>
-                  </div>
-                  <div className="stat">
-                    <span>Success Rate:</span>
-                    <span>{campaign.successRate}%</span>
-                  </div>
+                <div className="detail-row">
+                  <span className="label">Last Posted:</span>
+                  <span className="value">{formatTimeAgo(campaign.lastPostedAt)}</span>
                 </div>
+              </div>
 
-                <div className="campaign-actions">
-                  {campaign.isActive ? (
-                    <button 
-                      className="btn-stop"
-                      onClick={() => stopCampaign(campaign.id)}
-                    >
-                      ⏸️ Stop
-                    </button>
+              <div className="campaign-stats">
+                <div className="stat">
+                  <span className="stat-value">{campaign.totalPosts || 0}</span>
+                  <span className="stat-label">Total Posts</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-value">{campaign.successfulPosts || 0}</span>
+                  <span className="stat-label">Successful</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-value">{campaign.successRate || 0}%</span>
+                  <span className="stat-label">Success Rate</span>
+                </div>
+              </div>
+
+              <div className="campaign-actions">
+                <button
+                  className={`action-button ${campaign.status === 'active' ? 'pause' : 'start'}`}
+                  onClick={() => toggleCampaign(campaign.id, campaign.status)}
+                >
+                  {campaign.status === 'active' ? '⏸️ Pause' : '▶️ Start'}
+                </button>
+
+                <button
+                  className="action-button test"
+                  onClick={() => testCampaignPost(campaign.id)}
+                  disabled={testResults[campaign.id]?.loading}
+                >
+                  {testResults[campaign.id]?.loading ? '⏳ Testing...' : '🧪 Test Post'}
+                </button>
+              </div>
+
+              {/* Test Results */}
+              {testResults[campaign.id] && !testResults[campaign.id].loading && (
+                <div className={`test-results ${testResults[campaign.id].success ? 'success' : 'error'}`}>
+                  <h4>{testResults[campaign.id].success ? '✅ Test Successful' : '❌ Test Failed'}</h4>
+                  {testResults[campaign.id].success ? (
+                    <div className="results-summary">
+                      <p>Posted to {testResults[campaign.id].data?.stats?.successful || 0} platforms</p>
+                      <p>Success Rate: {testResults[campaign.id].data?.stats?.successRate || 0}%</p>
+                    </div>
                   ) : (
-                    <button 
-                      className="btn-start"
-                      onClick={() => startCampaign(campaign.id)}
-                    >
-                      ▶️ Start
-                    </button>
+                    <div className="error-details">
+                      <p>{testResults[campaign.id].error || 'Unknown error occurred'}</p>
+                    </div>
                   )}
-                  <button className="btn-edit">✏️ Edit</button>
-                  <button className="btn-delete">🗑️ Delete</button>
+                  <small>Tested {formatTimeAgo(testResults[campaign.id].timestamp)}</small>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

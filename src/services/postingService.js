@@ -1,272 +1,619 @@
 const { Campaign, Post } = require('../../models');
 
-// Add the missing method directly to Campaign prototype
-Campaign.prototype.isReadyToPost = function() {
-  if (!this.isActive) {
-    return false;
-  }
-  if (!this.nextPostAt) {
-    return true;
-  }
-  return new Date() >= this.nextPostAt;
-};
+// Import all platform APIs
+const facebookAPI = require('../integrations/facebookAPI');
+const twitterAPI = require('../integrations/twitterAPI');
+const linkedinAPI = require('../integrations/linkedinAPI');
+const instagramAPI = require('../integrations/instagramAPI');
+const tiktokAPI = require('../integrations/tiktokAPI');
+const threadsAPI = require('../integrations/threadsAPI');
+const { Campaign, Post } = require('../../models');
+const analyticsService = require('./analyticsService');
+const threadsService = require('./threadsService');
 
+/**
+ * PostingService - Now with REAL Platform APIs!
+ * Handles posting to all 6 social media platforms using real APIs
+ */
 class PostingService {
+  constructor() {
+    console.log('🚀 PostingService initialized with REAL platform APIs');
+  }
 
-  // Main function to execute a campaign post across all selected platforms
-  async executeCampaignPost(campaignId) {
+  /**
+   * Check if campaign is ready to post
+   */
+  async isReadyToPost(campaignId) {
     try {
-      console.log(`🚀 Executing campaign post for campaign ID: ${campaignId}`);
-      
-      // Get campaign details
       const campaign = await Campaign.findByPk(campaignId);
       
       if (!campaign) {
-        throw new Error(`Campaign ${campaignId} not found`);
+        return { ready: false, reason: 'Campaign not found' };
       }
 
-      if (!campaign.isActive) {
-        console.log(`⚠️ Campaign ${campaignId} is not active. Skipping post.`);
-        return { success: false, message: 'Campaign not active' };
+      if (campaign.status !== 'active') {
+        return { ready: false, reason: 'Campaign is not active' };
       }
 
-      // Check if campaign is ready to post
-      if (!campaign.isReadyToPost()) {
-        console.log(`⏰ Campaign ${campaignId} not ready to post yet. Next post at: ${campaign.nextPostAt}`);
-        return { success: false, message: 'Not ready to post yet' };
+      if (!campaign.content || campaign.content.trim() === '') {
+        return { ready: false, reason: 'Campaign has no content' };
       }
-      
-      const platforms = campaign.getPlatformsArray();
-      const results = {};
-      
-      console.log(`📱 Posting to platforms: ${platforms.join(', ')}`);
-      
-      // Post to each selected platform
-      for (const platform of platforms) {
-        try {
-          console.log(`📤 Posting to ${platform}...`);
-          
-          const result = await this.postToPlatform(campaign, platform);
-          results[platform] = result;
-          
-          if (result.success) {
-            console.log(`✅ Successfully posted to ${platform}`);
-          } else {
-            console.log(`❌ Failed to post to ${platform}: ${result.error}`);
-          }
-          
-        } catch (error) {
-          console.error(`❌ Error posting to ${platform}:`, error.message);
-          results[platform] = {
-            success: false,
-            error: error.message,
-            timestamp: new Date()
+
+      if (!campaign.platforms || campaign.platforms.length === 0) {
+        return { ready: false, reason: 'No platforms selected' };
+      }
+
+      // Check if enough time has passed since last post
+      if (campaign.lastPostedAt) {
+        const timeSinceLastPost = Date.now() - new Date(campaign.lastPostedAt).getTime();
+        const intervalMs = (campaign.intervalHours || 2) * 60 * 60 * 1000;
+        
+        if (timeSinceLastPost < intervalMs) {
+          const nextPostTime = new Date(new Date(campaign.lastPostedAt).getTime() + intervalMs);
+          return { 
+            ready: false, 
+            reason: 'Interval not reached yet',
+            nextPostTime: nextPostTime.toISOString()
           };
         }
       }
-      
-      // Update campaign statistics
-      await this.updateCampaignStats(campaign, results);
-      
-      // Schedule next post
-      await this.scheduleNextPost(campaign);
-      
-      return {
-        success: true,
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        results: results,
-        nextPostAt: campaign.nextPostAt
-      };
-      
+
+      return { ready: true };
+
     } catch (error) {
-      console.error('❌ Error executing campaign post:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      console.error('Error checking campaign readiness:', error);
+      return { ready: false, reason: 'Error checking campaign status' };
     }
   }
 
-  // Post to a specific platform
-  async postToPlatform(campaign, platform) {
+  /**
+   * Get platform tokens (placeholder - you'll implement OAuth later)
+   */
+  async getPlatformTokens(userId, platform) {
+    // TODO: In Phase 2, this will get real OAuth tokens from database
+    // For now, return placeholder tokens for testing
+    
+    const placeholderTokens = {
+      facebook: {
+        accessToken: process.env.FACEBOOK_ACCESS_TOKEN || 'placeholder_facebook_token'
+      },
+      twitter: {
+        consumerKey: process.env.TWITTER_CONSUMER_KEY || 'placeholder_consumer_key',
+        consumerSecret: process.env.TWITTER_CONSUMER_SECRET || 'placeholder_consumer_secret',
+        accessToken: process.env.TWITTER_ACCESS_TOKEN || 'placeholder_access_token',
+        tokenSecret: process.env.TWITTER_TOKEN_SECRET || 'placeholder_token_secret'
+      },
+      linkedin: {
+        accessToken: process.env.LINKEDIN_ACCESS_TOKEN || 'placeholder_linkedin_token'
+      },
+      instagram: {
+        accessToken: process.env.INSTAGRAM_ACCESS_TOKEN || 'placeholder_instagram_token'
+      },
+      tiktok: {
+        accessToken: process.env.TIKTOK_ACCESS_TOKEN || 'placeholder_tiktok_token'
+      },
+      threads: {
+        accessToken: process.env.THREADS_ACCESS_TOKEN || 'placeholder_threads_token'
+      }
+    };
+
+    return placeholderTokens[platform];
+  }
+
+  /**
+   * Post to Facebook using real API
+   */
+  async postToFacebook(campaignData, tokens) {
     try {
-      // Get platform-specific formatted content
-      const formattedContent = this.formatContentForPlatform(campaign.content, platform);
+      console.log('📘 Posting to Facebook...');
       
-      // Simulate posting to platform (replace with real API calls later)
-      const postResult = await this.simulatePost(campaign, platform, formattedContent);
+      const result = await facebookAPI.postToFacebook(campaignData, tokens.accessToken);
       
-      // Log the post attempt
-      await this.logCampaignPost(campaign.id, platform, postResult.success, postResult);
-      
-      return {
-        success: postResult.success,
-        platform: platform,
-        content: formattedContent,
-        timestamp: new Date(),
-        data: postResult
-      };
-      
+      if (result.success) {
+        console.log('✅ Facebook post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { likes: 0, comments: 0, shares: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
+
     } catch (error) {
-      // Log failed post
-      await this.logCampaignPost(campaign.id, platform, false, { error: error.message });
-      
+      console.error('❌ Facebook posting failed:', error.message);
       return {
         success: false,
-        platform: platform,
         error: error.message,
-        timestamp: new Date()
+        platform: 'facebook'
       };
     }
   }
 
-  // Format content for specific platforms
-  formatContentForPlatform(content, platform) {
-    switch (platform) {
-      case 'twitter':
-        // Twitter has 280 character limit
-        if (content.length > 280) {
-          return content.substring(0, 277) + '...';
-        }
-        return content + ' #automation #socialmedia';
-        
-      case 'facebook':
-        // Facebook allows longer content
-        return content + '\n\n#SocialMediaAutomation #Marketing';
-        
-      case 'linkedin':
-        // LinkedIn professional tone
-        return content + '\n\n#ProfessionalDevelopment #Business #LinkedIn';
-        
-      case 'instagram':
-        // Instagram hashtag heavy
-        return content + '\n\n#Instagram #Visual #Content #Engagement';
-        
-      case 'tiktok':
-        // TikTok trending hashtags
-        return content + '\n\n#TikTok #Trending #Viral #Content';
-        
-      case 'threads':
-        // Threads similar to Twitter but allows more
-        return content + '\n\n#Threads #Community #Discussion';
-        
-      default:
-        return content;
-    }
-  }
+  /**
+   * Post to Twitter using real API
+   */
+  async postToTwitter(campaignData, tokens) {
+    try {
+      console.log('🐦 Posting to Twitter...');
+      
+      const result = await twitterAPI.postToTwitter(campaignData, tokens);
+      
+      if (result.success) {
+        console.log('✅ Twitter post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { likes: 0, retweets: 0, replies: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
 
-  // Simulate posting (replace with real API calls later)
-  async simulatePost(campaign, platform, content) {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulate 90% success rate
-    const success = Math.random() > 0.1;
-    
-    if (success) {
+    } catch (error) {
+      console.error('❌ Twitter posting failed:', error.message);
       return {
-        success: true,
-        postId: `${platform}_${Date.now()}`,
-        message: `Posted successfully to ${platform}`,
-        engagement: {
-          likes: Math.floor(Math.random() * 50),
-          shares: Math.floor(Math.random() * 10),
-          comments: Math.floor(Math.random() * 15)
-        }
+        success: false,
+        error: error.message,
+        platform: 'twitter'
       };
+    }
+  }
+
+  /**
+   * Post to LinkedIn using real API
+   */
+  async postToLinkedIn(campaignData, tokens) {
+    try {
+      console.log('💼 Posting to LinkedIn...');
+      
+      const result = await linkedinAPI.postToLinkedIn(campaignData, tokens.accessToken);
+      
+      if (result.success) {
+        console.log('✅ LinkedIn post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { likes: 0, comments: 0, shares: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ LinkedIn posting failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        platform: 'linkedin'
+      };
+    }
+  }
+
+  /**
+   * Post to Instagram using real API
+   */
+  async postToInstagram(campaignData, tokens) {
+    try {
+      console.log('📸 Posting to Instagram...');
+      
+      const result = await instagramAPI.postToInstagram(campaignData, tokens.accessToken);
+      
+      if (result.success) {
+        console.log('✅ Instagram post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { likes: 0, comments: 0, shares: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ Instagram posting failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        platform: 'instagram'
+      };
+    }
+  }
+
+  /**
+   * Post to TikTok using real API
+   */
+  async postToTikTok(campaignData, tokens) {
+    try {
+      console.log('🎵 Posting to TikTok...');
+      
+      const result = await tiktokAPI.postToTikTok(campaignData, tokens.accessToken);
+      
+      if (result.success) {
+        console.log('✅ TikTok post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { views: 0, likes: 0, comments: 0, shares: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ TikTok posting failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        platform: 'tiktok'
+      };
+    }
+  }
+
+  /**
+   * Post to Threads using real API
+   */
+  async postToThreads(campaignData, tokens) {
+    try {
+      console.log('🧵 Posting to Threads...');
+      
+      const result = await threadsAPI.postToThreads(campaignData, tokens.accessToken);
+      
+      if (result.success) {
+        console.log('✅ Threads post successful');
+        return {
+          success: true,
+          data: result,
+          engagement: { likes: 0, replies: 0, reposts: 0, quotes: 0 }
+        };
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ Threads posting failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        platform: 'threads'
+      };
+    }
+  }
+
+  /**
+   * Execute posting to all selected platforms
+   */
+  async executePost(campaignId) {
+    try {
+      console.log(`🚀 Starting post execution for campaign ${campaignId}`);
+
+      // Check if campaign is ready
+      const readyCheck = await this.isReadyToPost(campaignId);
+      if (!readyCheck.ready) {
+        console.log(`⏸️ Campaign not ready: ${readyCheck.reason}`);
+        return {
+          success: false,
+          reason: readyCheck.reason,
+          nextPostTime: readyCheck.nextPostTime
+        };
+      }
+
+      // Get campaign data
+      const campaign = await Campaign.findByPk(campaignId);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      const campaignData = {
+        content: campaign.content,
+        mediaUrls: campaign.mediaUrls ? JSON.parse(campaign.mediaUrls) : [],
+        campaignId: campaign.id
+      };
+
+      console.log(`📝 Content: ${campaignData.content.substring(0, 50)}...`);
+      console.log(`📸 Media files: ${campaignData.mediaUrls.length}`);
+
+      // Parse selected platforms
+      const selectedPlatforms = JSON.parse(campaign.platforms || '[]');
+      console.log(`🎯 Target platforms: ${selectedPlatforms.join(', ')}`);
+
+      const results = {};
+      let successCount = 0;
+      let totalCount = selectedPlatforms.length;
+
+      // Post to each selected platform
+      // Post to all selected platforms simultaneously with retry logic
+      console.log(`🚀 Starting simultaneous posting to ${selectedPlatforms.length} platforms...`);
+
+      const platformPromises = selectedPlatforms.map(platform => 
+      this.postToPlatformWithRetry(platform, campaignData, campaign.userId, campaignId)
+    );
+
+    const platformResults = await Promise.allSettled(platformPromises);
+
+    // Process results
+    platformResults.forEach((result, index) => {
+    const platform = selectedPlatforms[index];
+  
+    if (result.status === 'fulfilled' && result.value.success) {
+      results[platform] = result.value;
+      successCount++;
+      console.log(`✅ ${platform} posting successful`);
     } else {
-      throw new Error(`Simulated ${platform} API error`);
+      const error = result.status === 'rejected' ? result.reason : result.value.error;
+      results[platform] = {
+        success: false,
+        error: error,
+        platform: platform
+      };
+      console.log(`❌ ${platform} posting failed: ${error}`);
     }
-  }
+  });
 
-  // Update campaign statistics after posting
-  async updateCampaignStats(campaign, results) {
-    try {
-      const totalAttempts = Object.keys(results).length;
-      const successfulPosts = Object.values(results).filter(result => result.success).length;
+  console.log(`🎯 Simultaneous posting complete: ${successCount}/${totalCount} successful`);
+      // Update campaign statistics
+      await this.updateCampaignStats(campaignId, successCount, totalCount);
+
+      const successRate = totalCount > 0 ? (successCount / totalCount * 100).toFixed(1) : 0;
       
-      // Update campaign counters
-      campaign.totalPosts += totalAttempts;
-      campaign.successfulPosts += successfulPosts;
-      campaign.lastPostedAt = new Date();
-      
-      await campaign.save();
-      
-      console.log(`📊 Updated campaign stats: ${successfulPosts}/${totalAttempts} successful posts`);
-      
+      console.log(`\n🎯 Post execution complete!`);
+      console.log(`✅ Success: ${successCount}/${totalCount} platforms (${successRate}%)`);
+
+      return {
+        success: successCount > 0,
+        results: results,
+        stats: {
+          total: totalCount,
+          successful: successCount,
+          failed: totalCount - successCount,
+          successRate: parseFloat(successRate)
+        },
+        timestamp: new Date().toISOString()
+      };
+
     } catch (error) {
-      console.error('❌ Error updating campaign stats:', error);
+      console.error('❌ Post execution failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
-  // Schedule the next post for the campaign
-  async scheduleNextPost(campaign) {
-    try {
-      const nextPostTime = new Date(Date.now() + (campaign.intervalMinutes * 60 * 1000));
-      
-      campaign.nextPostAt = nextPostTime;
-      await campaign.save();
-      
-      console.log(`⏰ Next post scheduled for: ${nextPostTime.toLocaleString()}`);
-      
-    } catch (error) {
-      console.error('❌ Error scheduling next post:', error);
-    }
-  }
-
-  // Log campaign post to database
-  async logCampaignPost(campaignId, platform, success, data, errorMessage = null) {
+  /**
+   * Log individual post result to database
+   */
+  async logPostResult(campaignId, platform, result) {
     try {
       await Post.create({
-        content: `Campaign ${campaignId}: ${platform} post`,
-        mediaUrls: null,
-        scheduledTime: new Date(),
-        status: success ? 'posted' : 'failed',
-        platforms: platform
+        campaignId: campaignId,
+        platform: platform,
+        success: result.success,
+        errorMessage: result.error || null,
+        engagementData: JSON.stringify({
+          platformData: result.data || {},
+          engagement: result.engagement || {},
+          timestamp: new Date().toISOString()
+        })
       });
-      
-      console.log(`📝 Logged ${platform} post: ${success ? 'SUCCESS' : 'FAILED'}`);
-      
     } catch (error) {
-      console.error('❌ Error logging post:', error);
+      console.error('Error logging post result:', error.message);
     }
   }
 
-  // Get campaign posting status
-  async getCampaignStatus(campaignId) {
+
+
+  /**
+   * Update campaign statistics
+   */
+  async updateCampaignStats(campaignId, successCount, totalCount) {
     try {
       const campaign = await Campaign.findByPk(campaignId);
-      
-      if (!campaign) {
-        return { error: 'Campaign not found' };
-      }
-      
-      return {
-        id: campaign.id,
-        name: campaign.name,
-        isActive: campaign.isActive,
-        status: campaign.getStatus(),
-        totalPosts: campaign.totalPosts,
-        successfulPosts: campaign.successfulPosts,
-        successRate: campaign.getSuccessRate(),
-        lastPostedAt: campaign.lastPostedAt,
-        nextPostAt: campaign.nextPostAt,
-        platforms: campaign.getPlatformsArray(),
-        isReadyToPost: campaign.isReadyToPost()
-      };
-      
+      if (!campaign) return;
+
+      const newTotalPosts = (campaign.totalPosts || 0) + totalCount;
+      const newSuccessfulPosts = (campaign.successfulPosts || 0) + successCount;
+      const newSuccessRate = newTotalPosts > 0 ? (newSuccessfulPosts / newTotalPosts * 100) : 0;
+
+      // Calculate next post time
+      const nextPostTime = new Date(Date.now() + (campaign.intervalHours || 2) * 60 * 60 * 1000);
+
+      await campaign.update({
+        totalPosts: newTotalPosts,
+        successfulPosts: newSuccessfulPosts,
+        successRate: parseFloat(newSuccessRate.toFixed(1)),
+        lastPostedAt: new Date(),
+        nextPostAt: nextPostTime
+      });
+
+      console.log(`📊 Campaign stats updated: ${newSuccessfulPosts}/${newTotalPosts} posts (${newSuccessRate.toFixed(1)}% success)`);
+      console.log(`⏰ Next post scheduled: ${nextPostTime.toISOString()}`);
+
     } catch (error) {
-      return { error: error.message };
+      console.error('Error updating campaign stats:', error.message);
     }
   }
 
-  // Manual trigger for testing
-  async triggerManualPost(campaignId) {
-    console.log(`🔧 Manual trigger for campaign ${campaignId}`);
-    return await this.executeCampaignPost(campaignId);
+  /**
+   * Optimize content for specific platform
+   */
+  optimizeContentForPlatform(campaignData, platform) {
+    const optimizedData = { ...campaignData };
+    
+    switch (platform) {
+      case 'twitter':
+        // Twitter: 280 character limit
+        if (optimizedData.content.length > 240) {
+          optimizedData.content = optimizedData.content.substring(0, 237) + '...';
+        }
+        optimizedData.content += '\n\n#automation #socialmedia #twitter';
+        break;
+        
+      case 'facebook':
+        // Facebook: Full content with engaging hashtags
+        optimizedData.content += '\n\n🚀 Follow us for more updates!\n#SocialMediaAutomation #Marketing #Facebook #Business';
+        break;
+        
+      case 'linkedin':
+        // LinkedIn: Professional tone
+        optimizedData.content += '\n\n💼 Connect with professionals in your industry.\n#ProfessionalDevelopment #Business #LinkedIn #Networking #CareerGrowth';
+        break;
+        
+      case 'instagram':
+        // Instagram: Visual focus with many hashtags
+        optimizedData.content += '\n\n📸✨ #Instagram #Visual #Content #Engagement #Photography #Social #Creative #Inspiration #Daily #Follow';
+        break;
+        
+      case 'tiktok':
+        // TikTok: Trending and fun
+        optimizedData.content += '\n\n🎵🔥 #TikTok #Trending #Viral #Content #ForYou #FYP #Creative #Fun';
+        break;
+        
+      case 'threads':
+        // Threads: Use special Threads features (mentions + trending hashtags)
+        console.log('🧵 Applying Threads-specific optimizations...');
+        const threadsOptimization = threadsService.optimizeForThreads(optimizedData.content, campaignData);
+        optimizedData.content = threadsOptimization.content;
+        optimizedData.threadsData = {
+        mentionedUsers: threadsOptimization.mentionedUsers,
+        addedHashtags: threadsOptimization.addedHashtags
+        };
+        console.log(`✨ Threads optimization complete: ${threadsOptimization.mentionedUsers.length} mentions added`);
+        break;
+    }
+    return optimizedData;
   }
 
+  /**
+   * Post to a single platform with retry logic
+   */
+  async postToPlatformWithRetry(platform, campaignData, userId, campaignId, maxRetries = 2) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`📤 Posting to ${platform} (attempt ${attempt}/${maxRetries})`);
+
+        // Get platform tokens
+        const tokens = await this.getPlatformTokens(userId, platform);
+        
+        // Optimize content for this specific platform
+        const optimizedData = this.optimizeContentForPlatform(campaignData, platform);
+        console.log(`🎨 Content optimized for ${platform}`);
+        
+        let result;
+        
+        // Call the appropriate platform API
+        switch (platform) {
+          case 'facebook':
+            result = await this.postToFacebook(optimizedData, tokens);
+            break;
+          case 'twitter':
+            result = await this.postToTwitter(optimizedData, tokens);
+            break;
+          case 'linkedin':
+            result = await this.postToLinkedIn(optimizedData, tokens);
+            break;
+          case 'instagram':
+            result = await this.postToInstagram(optimizedData, tokens);
+            break;
+          case 'tiktok':
+            result = await this.postToTikTok(optimizedData, tokens);
+            break;
+          case 'threads':
+            result = await this.postToThreads(optimizedData, tokens);
+            break;
+          default:
+            throw new Error(`Unsupported platform: ${platform}`);
+        }
+
+        // Log the result to database
+        await this.logPostResult(campaignId, platform, result);
+
+        // If successful, return the result
+        if (result.success) {
+          console.log(`✅ ${platform} posting successful on attempt ${attempt}`);
+          return result;
+        } else {
+          // If this was the last attempt, throw error
+          if (attempt === maxRetries) {
+            throw new Error(result.error || `Failed after ${maxRetries} attempts`);
+          }
+          
+          console.log(`⚠️ ${platform} failed attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+        }
+
+      } catch (error) {
+        console.error(`❌ ${platform} attempt ${attempt} failed:`, error.message);
+        
+        // If this was the last attempt, return failure
+        if (attempt === maxRetries) {
+          const failureResult = {
+            success: false,
+            error: error.message,
+            platform: platform
+          };
+          
+          await this.logPostResult(campaignId, platform, failureResult);
+          return failureResult;
+        }
+        
+        console.log(`🔄 Retrying ${platform} in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+      }
+    }
+  }
+
+  /**
+   * Test platform connections
+   */
+  async testPlatformConnections(userId) {
+    console.log('🔍 Testing all platform connections...');
+    
+    const platforms = ['facebook', 'twitter', 'linkedin', 'instagram', 'tiktok', 'threads'];
+    const results = {};
+
+    for (const platform of platforms) {
+      try {
+        const tokens = await this.getPlatformTokens(userId, platform);
+        
+        let testResult;
+        
+        switch (platform) {
+          case 'facebook':
+            testResult = await facebookAPI.testConnection(tokens.accessToken);
+            break;
+          case 'twitter':
+            testResult = await twitterAPI.testConnection(tokens);
+            break;
+          case 'linkedin':
+            testResult = await linkedinAPI.testConnection(tokens.accessToken);
+            break;
+          case 'instagram':
+            testResult = await instagramAPI.testConnection(tokens.accessToken);
+            break;
+          case 'tiktok':
+            testResult = await tiktokAPI.testConnection(tokens.accessToken);
+            break;
+          case 'threads':
+            testResult = await threadsAPI.testConnection(tokens.accessToken);
+            break;
+        }
+
+        results[platform] = testResult;
+        console.log(`${testResult.success ? '✅' : '❌'} ${platform}: ${testResult.success ? 'Connected' : testResult.error}`);
+
+      } catch (error) {
+        results[platform] = {
+          success: false,
+          error: error.message
+        };
+        console.log(`❌ ${platform}: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
 }
 
 module.exports = new PostingService();

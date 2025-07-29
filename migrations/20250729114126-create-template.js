@@ -1,9 +1,8 @@
 'use strict';
-
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('PlatformConnections', {
+    await queryInterface.createTable('Templates', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -20,21 +19,24 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      platform: {
+      name: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      accessToken: {
+      content: {
         type: Sequelize.TEXT,
         allowNull: false
       },
-      refreshToken: {
-        type: Sequelize.TEXT,
-        allowNull: true
+      description: {
+        type: Sequelize.TEXT
       },
-      expiresAt: {
-        type: Sequelize.DATE,
-        allowNull: true
+      category: {
+        type: Sequelize.STRING,
+        defaultValue: 'general'
+      },
+      platforms: {
+        type: Sequelize.TEXT,
+        defaultValue: '[]'
       },
       isActive: {
         type: Sequelize.BOOLEAN,
@@ -50,14 +52,13 @@ module.exports = {
       }
     });
 
-    // Add unique constraint to prevent duplicate connections
-    await queryInterface.addIndex('PlatformConnections', ['userId', 'platform'], {
-      unique: true,
-      name: 'unique_user_platform'
-    });
+    // Add indexes for better performance
+    await queryInterface.addIndex('Templates', ['userId']);
+    await queryInterface.addIndex('Templates', ['category']);
+    await queryInterface.addIndex('Templates', ['isActive']);
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('PlatformConnections');
+    await queryInterface.dropTable('Templates');
   }
 };

@@ -1,9 +1,8 @@
 'use strict';
-
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('PlatformConnections', {
+    await queryInterface.createTable('HashtagGroups', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -20,21 +19,25 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      platform: {
+      name: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      accessToken: {
+      hashtags: {
         type: Sequelize.TEXT,
-        allowNull: false
+        allowNull: false,
+        defaultValue: '[]'
       },
-      refreshToken: {
-        type: Sequelize.TEXT,
-        allowNull: true
+      description: {
+        type: Sequelize.TEXT
       },
-      expiresAt: {
-        type: Sequelize.DATE,
-        allowNull: true
+      platform: {
+        type: Sequelize.STRING,
+        defaultValue: 'all'
+      },
+      category: {
+        type: Sequelize.STRING,
+        defaultValue: 'general'
       },
       isActive: {
         type: Sequelize.BOOLEAN,
@@ -50,14 +53,14 @@ module.exports = {
       }
     });
 
-    // Add unique constraint to prevent duplicate connections
-    await queryInterface.addIndex('PlatformConnections', ['userId', 'platform'], {
-      unique: true,
-      name: 'unique_user_platform'
-    });
+    // Add indexes for better performance
+    await queryInterface.addIndex('HashtagGroups', ['userId']);
+    await queryInterface.addIndex('HashtagGroups', ['platform']);
+    await queryInterface.addIndex('HashtagGroups', ['category']);
+    await queryInterface.addIndex('HashtagGroups', ['isActive']);
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('PlatformConnections');
+    await queryInterface.dropTable('HashtagGroups');
   }
 };

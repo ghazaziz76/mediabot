@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import PlatformConnections from './components/PlatformConnections';
 import Campaigns from './components/Campaigns';
 import Analytics from './components/Analytics';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import './App.css';
@@ -89,9 +90,13 @@ function App() {
             
             {/* Campaigns */}
             <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/posts" element={<Campaigns />} />
             
             {/* Analytics */}
-            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
+
+            {/* Advanced Analytics Dashboard - NEW */}
+            <Route path="/analytics-dashboard" element={<AnalyticsDashboard />} />
             
             {/* Settings */}
             <Route path="/settings" element={<Settings />} />

@@ -3,8 +3,31 @@ const router = express.Router();
 const platformController = require('../controllers/platformController');
 const { authenticateToken } = require('../middleware/auth');
 
-// Apply authentication middleware to all platform routes
+// ===============================================
+// UNPROTECTED ROUTES (NO AUTHENTICATION NEEDED)
+// ===============================================
+// These routes are called by Facebook/Twitter/etc., not by your React app
+
+// OAuth callback routes - Facebook calls these, so NO authentication required
+router.get('/callback/:platform', async (req, res) => {
+  try {
+    await platformController.handleOAuthCallback(req, res);
+  } catch (error) {
+    console.error(`Error in ${req.params.platform} callback:`, error);
+    res.redirect('/dashboard/platforms?error=callback_failed');
+  }
+});
+
+// ===============================================
+// APPLY AUTHENTICATION TO ALL ROUTES BELOW
+// ===============================================
+// This line protects ALL routes that come after it
 router.use(authenticateToken);
+
+// ===============================================
+// PROTECTED ROUTES (AUTHENTICATION REQUIRED)
+// ===============================================
+// These routes are called by your React app, so they need authentication
 
 // GET /api/platforms/status - Get connection status for all platforms
 router.get('/status', async (req, res) => {
@@ -31,16 +54,6 @@ router.post('/connect/:platform', async (req, res) => {
   } catch (error) {
     console.error(`Error connecting ${req.params.platform}:`, error);
     res.status(500).json({ error: 'Failed to initiate connection' });
-  }
-});
-
-// GET /api/platforms/callback/:platform - Handle OAuth callbacks
-router.get('/callback/:platform', async (req, res) => {
-  try {
-    await platformController.handleOAuthCallback(req, res);
-  } catch (error) {
-    console.error(`Error in ${req.params.platform} callback:`, error);
-    res.redirect('/dashboard/platforms?error=callback_failed');
   }
 });
 
