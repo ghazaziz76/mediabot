@@ -45,45 +45,13 @@ module.exports = (sequelize, DataTypes) => {
       return 'Running';
     }
   }
-  
   Campaign.init({
-    userId: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
-    name: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    description: {
-      type: DataTypes.TEXT
-    },
-    content: {
-      type: DataTypes.TEXT,
-      allowNull: false
-    },
-    mediaUrls: {
-      type: DataTypes.TEXT
-    },
-    platforms: {
-      type: DataTypes.TEXT,
-      allowNull: false
-    },
-    intervalMinutes: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 360
-    },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
-    lastPostedAt: {
-      type: DataTypes.DATE
-    },
-    nextPostAt: {
-      type: DataTypes.DATE
-    },
+    name: DataTypes.STRING,
+    content: DataTypes.TEXT,
+    mediaUrls: DataTypes.TEXT,
+    platforms: DataTypes.TEXT,
+    intervalMinutes: DataTypes.INTEGER,
+    status: DataTypes.STRING,
     totalPosts: {
       type: DataTypes.INTEGER,
       defaultValue: 0
@@ -91,10 +59,53 @@ module.exports = (sequelize, DataTypes) => {
     successfulPosts: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    lastPostedAt: DataTypes.DATE,
+    nextPostAt: DataTypes.DATE,
+    
+    // NEW ADVANCED SCHEDULING FIELDS
+    scheduledStartDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'When the campaign should start posting'
+    },
+    scheduledEndDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'When the campaign should stop posting'
+    },
+    daysOfWeek: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: '1,2,3,4,5,6,7',
+      comment: 'Which days of week to post (1=Mon, 7=Sun)'
+    },
+    postingTimes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '["09:00"]',
+      comment: 'Times to post each day (JSON array)'
+    },
+    platformSchedules: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Different schedules for different platforms (JSON)'
+    },
+    scheduleType: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'interval',
+      comment: 'interval, daily, weekly, custom'
+    },
+    isScheduleActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true
     }
   }, {
     sequelize,
     modelName: 'Campaign',
   });
-  return Campaign;
+    return Campaign;
 };
+

@@ -41,8 +41,15 @@ const authController = require('./src/controllers/authController');
 const mediaController = require('./src/controllers/mediaController');
 const threadsController = require('./src/controllers/threadsController');
 const platformRoutes = require('./src/routes/platformRoutes');
-const campaignRoutes = require('./src/routes/campaignRoutes');
+let campaignRoutes;
+try {
+    campaignRoutes = require('./src/routes/campaignRoutes');
+    console.log('✅ Campaign routes loaded successfully');
+} catch (error) {
+    console.log('❌ Campaign routes error:', error.message);
+}
 const analyticsController = require('./src/controllers/analyticsController');
+const scheduleController = require('./src/controllers/scheduleController');
 const { authenticateToken } = require('./src/middleware/auth');
 
 console.log('📁 Route import test complete\n');
@@ -55,6 +62,11 @@ app.post('/api/auth/login', authController.login);
 app.post('/api/media/upload', authenticateToken, mediaController.upload.single('file'), mediaController.uploadSingle);
 app.get('/api/media', authenticateToken, mediaController.getAllMedia);
 app.delete('/api/media/:id', authenticateToken, mediaController.deleteMedia);
+
+// Advanced Scheduling routes (protected)
+app.put('/api/campaigns/:campaignId/schedule', authenticateToken, scheduleController.updateCampaignSchedule);
+app.get('/api/campaigns/:campaignId/schedule', authenticateToken, scheduleController.getCampaignSchedule);
+app.get('/api/campaigns/:campaignId/should-post', authenticateToken, scheduleController.shouldCampaignPost);
 
 // Platform routes
 app.use('/api/platforms', platformRoutes);
@@ -90,10 +102,7 @@ app.get('/api/threads/trending-topics', authenticateToken, threadsController.get
 app.post('/api/threads/build-audience', authenticateToken, threadsController.buildTargetAudience);
 app.post('/api/threads/preview-post', authenticateToken, threadsController.previewPost);
 
-// Campaign routes (protected)
-app.use('/api/campaigns', campaignRoutes);
-
-// Test post route for campaigns
+// IMPORTANT: Test post route MUST be defined BEFORE the general campaign routes
 app.post('/api/campaigns/:id/test-post', authenticateToken, async (req, res) => {
     try {
         const campaignId = req.params.id;
@@ -121,6 +130,14 @@ app.post('/api/campaigns/:id/test-post', authenticateToken, async (req, res) => 
         res.status(500).json({ error: 'Test post failed' });
     }
 });
+
+// Campaign routes (protected) - MUST come AFTER specific campaign routes
+if (campaignRoutes) {
+    app.use('/api/campaigns', campaignRoutes);
+    console.log('✅ Campaign routes registered at /api/campaigns');
+} else {
+    console.log('❌ Campaign routes not registered - file failed to load');
+}
 
 // Protected test route
 app.get('/api/protected', authenticateToken, (req, res) => {

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Sidebar.css';
 
 const Sidebar = ({ user, onLogout }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
@@ -41,6 +42,18 @@ const Sidebar = ({ user, onLogout }) => {
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  // Handle New Campaign button click
+  const handleNewCampaign = () => {
+    // Navigate to campaigns page with state to open the form
+    navigate('/campaigns', { state: { openCreateForm: true } });
+  };
+
+  // Handle Quick Post button click
+  const handleQuickPost = () => {
+    // Navigate to campaigns page with state to open quick post
+    navigate('/campaigns', { state: { openQuickPost: true } });
   };
 
   return (
@@ -105,11 +118,19 @@ const Sidebar = ({ user, onLogout }) => {
       {!isCollapsed && (
         <div className="quick-actions">
           <h4>Quick Actions</h4>
-          <button className="quick-action-btn">
+          <button 
+            className="quick-action-btn"
+            onClick={handleNewCampaign}
+            title="Create a new campaign"
+          >
             <span>➕</span>
             New Campaign
           </button>
-          <button className="quick-action-btn">
+          <button 
+            className="quick-action-btn"
+            onClick={handleQuickPost}
+            title="Create a quick post"
+          >
             <span>📝</span>
             Quick Post
           </button>
